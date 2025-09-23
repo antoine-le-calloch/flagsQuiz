@@ -11,6 +11,7 @@ struct Country: Identifiable, Codable {
     let id = UUID()
     let name: String
     let flag: String
+    var userAnswer: String = ""
 }
 
 class CountryData: ObservableObject {
@@ -53,16 +54,13 @@ class CountryData: ObservableObject {
         return currentIndex >= countries.count - 1
     }
     
-    func checkAnswer(_ answer: String) -> Bool {
-        guard let current = currentCountry else { return false }
-        let isCorrect = answer.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == current.name.lowercased()
-        
-        if isCorrect && !answeredQuestions.contains(current.id) {
-            score += 1
-            answeredQuestions.insert(current.id)
-        }
-        
-        return isCorrect
+    func checkAnswer(for country: Country) -> Bool {
+        let answer = country.userAnswer.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return answer == country.name.lowercased()
+    }
+    
+    func removeCountry(_ country: Country) {
+        countries.removeAll { $0.id == country.id }
     }
     
     func nextQuestion() {

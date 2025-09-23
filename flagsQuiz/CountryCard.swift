@@ -7,22 +7,21 @@
 import SwiftUI
 
 struct CountryCard: View {
-    let country: Country
+    let flag: String
     @Binding var userAnswer: String
     let onChange: (String) -> Void
-    
+
     var body: some View {
         VStack(spacing: 30) {
-            Text(country.flag)
+            Text(flag)
                 .font(.system(size: 150))
-            
+
             TextField("Country name", text: $userAnswer)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
                 .font(.title2)
                 .multilineTextAlignment(.center)
                 .onChange(of: userAnswer) { _, newValue in
                     onChange(newValue)
-                    print("User answer updated to: \(newValue)")
                 }
         }
     }
