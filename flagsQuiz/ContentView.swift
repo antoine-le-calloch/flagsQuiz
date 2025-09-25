@@ -8,13 +8,11 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var countryData = CountryData()
-    @State private var userAnswers: [Int: String] = [:]
-    @State private var showResult = false
-    @State private var isCorrect = false
-    @State private var showFinalResults = false
-    @State private var dragOffset: CGFloat = 0
-    @State private var isDragging = false
-
+    @State private var currentText: String = ""
+    @FocusState private var isTextFieldFocused: Bool
+    @State private var isValidated = false
+    @State private var endOfAnimation = false
+    
     var body: some View {
         ZStack {
             // Fixed blue background
@@ -24,106 +22,79 @@ struct ContentView: View {
                 endPoint: .bottomTrailing
             )
             .ignoresSafeArea()
-
-            if showFinalResults {
-                FinalResultsView(countryData: countryData) {
-                    countryData.resetQuiz()
-                    showFinalResults = false
-                    userAnswers = [:]
+            
+            VStack(spacing: 0) {
+                HStack {
+                    Text("\(countryData.currentIndex + 1)/\(countryData.countries.count)")
+                        .font(.headline)
+                        .foregroundColor(.white.opacity(0.8))
                 }
-            } else {
-                VStack(spacing: 0) {
-                    // Header with score and progress
-                    HStack {
-                        Text("Score: \(countryData.score)")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .fontWeight(.semibold)
-
-                        Spacer()
-
-                        Text("\(countryData.currentIndex + 1) / \(countryData.countries.count)")
-                            .font(.headline)
-                            .foregroundColor(.white.opacity(0.8))
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
-
-                    Spacer()
-
-                    TabView(selection: $countryData.currentIndex) {
-                        ForEach(0..<countryData.countries.count, id: \.self) { index in
-                            VStack {
-                                CountryCard(
-                                    flag: countryData.countries[index].flag,
-                                    userAnswer: $countryData.countries[index].userAnswer,
-                                    onChange: { answer in
-                                        countryData.countries[index].userAnswer = answer
-                                        if countryData.checkAnswer(for: countryData.countries[index]) {
-                                            countryData.removeCountry(countryData.countries[index])
-                                        }
-                                    }
-                                )
+                TabView(selection: $countryData.currentIndex) {
+                    ForEach(Array(countryData.countries.enumerated()), id: \.element.id) { index, country in
+                        VStack(spacing: 30) {
+                            Text(country.flag).font(.system(size: 150))
+                        }
+                        .padding()
+                        .frame(maxWidth: 300, maxHeight: 250)
+                        .background(
+                            Group {
+                                if isValidated {
+                                    Color.green.opacity(0.6)
+                                } else {
+                                    BlurView(style: .systemThinMaterial)
+                                }
                             }
-                            .padding()
-                            .frame(maxWidth: 350, maxHeight: 350)
-                            .background(Color.white)
-                            .cornerRadius(20)
-                            .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
-                            .tag(index)
+                        )
+                        .opacity(endOfAnimation ? 0 : 1)
+                        .cornerRadius(20)
+                        .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
+                        .tag(index)
+                    }
+                }
+                .offset(y: !endOfAnimation && isValidated ? -600 : 0)
+                .animation(.easeIn(duration: 0.4), value: isValidated)
+                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                .onChange(of: countryData.currentIndex) { _, _ in
+                    currentText = countryData.currentCountry?.userAnswer ?? ""
+                }
+                .onChange(of: countryData.countries.count) { _, _ in
+                    currentText = countryData.currentCountry?.userAnswer ?? ""
+                }
+                
+                TextField(
+                    "Country name",
+                    text: $currentText
+                )
+                .disableAutocorrection(true)
+                .autocapitalization(.none)
+                .keyboardType(.alphabet)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .font(.system(size: 25))
+                .multilineTextAlignment(.center)
+                .onChange(of: currentText) { _, newValue in
+                    countryData.countries[countryData.currentIndex].userAnswer = newValue
+                    guard let country = countryData.currentCountry else { return }
+                    
+                    if countryData.checkAnswer(for: country) {
+                        isValidated = true
+                        currentText = ""
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            isValidated = false
+                            endOfAnimation = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                                countryData.removeCountry(country)
+                                endOfAnimation = false
+                            }
                         }
                     }
-                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
-                    Spacer()
                 }
             }
         }
         .navigationTitle("Flag Quiz")
         .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-struct FinalResultsView: View {
-    @ObservedObject var countryData: CountryData
-    let onRestart: () -> Void
-
-    var body: some View {
-        VStack(spacing: 30) {
-            Text("🎉 Quiz Complete! 🎉")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
-
-            Text("Your Score")
-                .font(.title2)
-                .foregroundColor(.white.opacity(0.8))
-
-            Text("\(countryData.score) / \(countryData.countries.count)")
-                .font(.system(size: 60, weight: .bold))
-                .foregroundColor(.white)
-
-            let percentage = Double(countryData.score) / Double(countryData.countries.count) * 100
-            Text("\(Int(percentage))% success rate")
-                .font(.title3)
-                .foregroundColor(.white.opacity(0.7))
-
-            Button("Restart") {
-                onRestart()
-            }
-            .buttonStyle(.borderedProminent)
-            .font(.title2)
-            .controlSize(.large)
+        .onAppear {
+            isTextFieldFocused = true
         }
-        .padding(40)
-        .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: 25)
-                    .fill(Color.white.opacity(0.1))
-                BlurView(style: .systemUltraThinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 25))
-            }
-        )
-        .padding(.horizontal, 20)
     }
 }
 
