@@ -1,9 +1,3 @@
-//
-//  Country.swift
-//  flag-quiz
-//
-//  Created by Antoine on 9/21/25.
-//
 import SwiftUI
 import Foundation
 
@@ -11,15 +5,15 @@ struct Country: Identifiable, Codable {
     let id = UUID()
     let en: String
     let fr: String
+    let short: String?
     let flag: String
     var userAnswer: String = ""
-    var language: String = "fr"
     
     enum CodingKeys: String, CodingKey {
-        case en, fr, flag
+        case en, fr, short, flag
     }
     
-    var name: String {
+    func name(for language: String) -> String {
         if language == "fr" {return fr}
         return en
     }
@@ -29,6 +23,7 @@ class CountryData: ObservableObject {
     @Published var countries: [Country] = []
     @Published var currentIndex: Int = 0
     @Published var answeredQuestions: Set<UUID> = []
+    var language: String = "fr"
     
     init() {
         loadCountries()
@@ -67,11 +62,11 @@ class CountryData: ObservableObject {
             .lowercased()
             .folding(options: .diacriticInsensitive, locale: .current)
 
-        let correctName = country.name
+        let correctName = country.name(for: language)
             .lowercased()
             .folding(options: .diacriticInsensitive, locale: .current)
-
-        return answer == correctName
+        
+        return answer == correctName || (country.short != nil && answer == country.short!.lowercased())
     }
     func removeCountry(_ country: Country) {
         countries.removeAll { $0.id == country.id }
