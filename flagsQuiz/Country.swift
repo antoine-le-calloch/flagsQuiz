@@ -61,10 +61,12 @@ class CountryData: ObservableObject {
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
             .folding(options: .diacriticInsensitive, locale: .current)
+            .replacingOccurrences(of: "-", with: " ")
 
         let correctName = country.name(for: language)
             .lowercased()
             .folding(options: .diacriticInsensitive, locale: .current)
+            .replacingOccurrences(of: "-", with: " ")
         
         return answer == correctName || (country.short != nil && answer == country.short!.lowercased())
     }
